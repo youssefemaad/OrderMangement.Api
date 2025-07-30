@@ -6,27 +6,30 @@ using OrderMangement.Api.Shared.DataTransferObject;
 
 namespace OrderManagement.Core.Service
 {
-    public class CustomerService(IUnitOfWork _unitOfWork, IMapper _mapper) : ICustomerService
+    public class CustomerService(IUnitOfWork unitOfWork, IMapper mapper) : ICustomerService
     {
         public async Task<CustomerDto> CreateCustomerAsync(CustomerDto customerDto)
         {
-            var customer = _mapper.Map<Customer>(customerDto);
-            var createdCustomer = await _unitOfWork.Customers.AddAsync(customer);
-            await _unitOfWork.SaveChangesAsync();
+            var customerRepo = unitOfWork.GetRepository<Customer, int>();
+            var customer = mapper.Map<Customer>(customerDto);
+            var createdCustomer = await customerRepo.AddAsync(customer);
+            await unitOfWork.SaveChangesAsync();
 
-            return _mapper.Map<CustomerDto>(createdCustomer);
+            return mapper.Map<CustomerDto>(createdCustomer);
         }
 
         public async Task<IEnumerable<OrderDto>> GetCustomerOrdersAsync(int customerId)
         {
-            var orders = await _unitOfWork.Customers.GetCustomerOrdersAsync(customerId);
-            return _mapper.Map<IEnumerable<OrderDto>>(orders);
+            var orderRepo = unitOfWork.GetRepository<Order, int>();
+            var orders = await orderRepo.FindAsync(o => o.CustomerId == customerId);
+            return mapper.Map<IEnumerable<OrderDto>>(orders);
         }
 
         public async Task<CustomerDto?> GetCustomerByIdAsync(int customerId)
         {
-            var customer = await _unitOfWork.Customers.GetByIdAsync(customerId);
-            return customer == null ? null : _mapper.Map<CustomerDto>(customer);
+            var customerRepo = unitOfWork.GetRepository<Customer, int>();
+            var customer = await customerRepo.GetByIdAsync(customerId);
+            return customer == null ? null : mapper.Map<CustomerDto>(customer);
         }
     }
 }

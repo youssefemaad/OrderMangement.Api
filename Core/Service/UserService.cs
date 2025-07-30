@@ -7,49 +7,56 @@ using BCrypt.Net;
 
 namespace OrderManagement.Core.Service
 {
-    public class UserService(IUnitOfWork _unitOfWork, IMapper _mapper, IJwtTokenService _jwtTokenService) : IUserService
+    public class UserService(IUnitOfWork unitOfWork, IMapper mapper, IJwtTokenService jwtTokenService) : IUserService
     {
-
         public async Task<UserDto> RegisterUserAsync(UserDto userDto)
         {
-            var existingUser = await _unitOfWork.Users.UsernameExistsAsync(userDto.Username);
-            if (existingUser)
+            var userRepo = unitOfWork.GetRepository<User, int>();
+            var existingUsers = await userRepo.FindAsync(u => u.Username == userDto.Username);
+            if (existingUsers.Any())
                 throw new InvalidOperationException("Username already exists");
 
-            var user = _mapper.Map<User>(userDto);
+            var user = mapper.Map<User>(userDto);
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.PasswordHash);
 
-            var createdUser = await _unitOfWork.Users.AddAsync(user);
-            await _unitOfWork.SaveChangesAsync();
+            var createdUser = await userRepo.AddAsync(user);
+            await unitOfWork.SaveChangesAsync();
 
-            var result = _mapper.Map<UserDto>(createdUser);
-            result.PasswordHash = ""; // Don't return password hash
+            var result = mapper.Map<UserDto>(createdUser);
+            result.PasswordHash = "";
             return result;
         }
 
         public async Task<string?> LoginAsync(string username, string password)
         {
-            var user = await _unitOfWork.Users.GetByUsernameAsync(username);
+            var userRepo = unitOfWork.GetRepository<User, int>();
+            var users = await userRepo.FindAsync(u => u.Username == username);
+            var user = users.FirstOrDefault();
+
             if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
                 return null;
 
-            return _jwtTokenService.GenerateToken(user);
+            return jwtTokenService.GenerateToken(user);
         }
 
         public async Task<UserDto?> GetUserByIdAsync(int userId)
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            var userRepo = unitOfWork.GetRepository<User, int>();
+            var user = await userRepo.GetByIdAsync(userId);
             if (user == null)
                 return null;
 
-            var userDto = _mapper.Map<UserDto>(user);
-            userDto.PasswordHash = ""; // Don't return password hash
+            var userDto = mapper.Map<UserDto>(user);
+            userDto.PasswordHash = "";
             return userDto;
         }
 
         public async Task<bool> ValidateUserCredentialsAsync(string username, string password)
         {
-            var user = await _unitOfWork.Users.GetByUsernameAsync(username);
+            var userRepo = unitOfWork.GetRepository<User, int>();
+            var users = await userRepo.FindAsync(u => u.Username == username);
+            var user = users.FirstOrDefault();
+
             return user != null && BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
         }
     }
