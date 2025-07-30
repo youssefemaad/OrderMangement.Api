@@ -4,11 +4,7 @@ namespace OrderManagement.Core.DomainLayer.Contracts
 {
     public interface IUnitOfWork : IDisposable
     {
-        ICustomerRepository Customers { get; }
-        IOrderRepository Orders { get; }
-        IProductRepository Products { get; }
-        IInvoiceRepository Invoices { get; }
-        IUserRepository Users { get; }
+        IGenericRepository<TEntity, TKey> GetRepository<TEntity, TKey>() where TEntity : class;
 
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

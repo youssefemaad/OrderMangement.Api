@@ -6,24 +6,26 @@ using OrderMangement.Api.Shared.DataTransferObject;
 
 namespace OrderManagement.Core.Service
 {
-    public class InvoiceService(IUnitOfWork _unitOfWork, IMapper _mapper) : IInvoiceService
+    public class InvoiceService(IUnitOfWork unitOfWork, IMapper mapper) : IInvoiceService
     {
-
         public async Task<InvoiceDto?> GetInvoiceByIdAsync(int invoiceId)
         {
-            var invoice = await _unitOfWork.Invoices.GetByIdAsync(invoiceId);
-            return invoice == null ? null : _mapper.Map<InvoiceDto>(invoice);
+            var invoiceRepo = unitOfWork.GetRepository<Invoice, int>();
+            var invoice = await invoiceRepo.GetByIdAsync(invoiceId);
+            return invoice == null ? null : mapper.Map<InvoiceDto>(invoice);
         }
 
         public async Task<IEnumerable<InvoiceDto>> GetAllInvoicesAsync()
         {
-            var invoices = await _unitOfWork.Invoices.GetAllAsync();
-            return _mapper.Map<IEnumerable<InvoiceDto>>(invoices);
+            var invoiceRepo = unitOfWork.GetRepository<Invoice, int>();
+            var invoices = await invoiceRepo.GetAllAsync();
+            return mapper.Map<IEnumerable<InvoiceDto>>(invoices);
         }
 
         public async Task<InvoiceDto> GenerateInvoiceAsync(int orderId)
         {
-            var order = await _unitOfWork.Orders.GetOrderWithDetailsAsync(orderId);
+            var orderRepo = unitOfWork.GetRepository<Order, int>();
+            var order = await orderRepo.GetByIdAsync(orderId);
             if (order == null)
                 throw new ArgumentException("Order not found");
 
@@ -34,10 +36,11 @@ namespace OrderManagement.Core.Service
                 TotalAmount = order.TotalAmount
             };
 
-            var createdInvoice = await _unitOfWork.Invoices.AddAsync(invoice);
-            await _unitOfWork.SaveChangesAsync();
+            var invoiceRepo = unitOfWork.GetRepository<Invoice, int>();
+            var createdInvoice = await invoiceRepo.AddAsync(invoice);
+            await unitOfWork.SaveChangesAsync();
 
-            return _mapper.Map<InvoiceDto>(createdInvoice);
+            return mapper.Map<InvoiceDto>(createdInvoice);
         }
     }
 }

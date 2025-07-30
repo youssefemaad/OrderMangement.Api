@@ -9,32 +9,28 @@ namespace Persistence.Repository
     {
         private readonly OrderManagementDbContext _context;
         private IDbContextTransaction? _transaction;
-
-        private ICustomerRepository? _customers;
-        private IOrderRepository? _orders;
-        private IProductRepository? _products;
-        private IInvoiceRepository? _invoices;
-        private IUserRepository? _users;
+        private readonly Dictionary<string, object> _repositories = new();
 
         public UnitOfWork(OrderManagementDbContext context)
         {
             _context = context;
         }
 
-        public ICustomerRepository Customers =>
-            _customers ??= new CustomerRepository(_context);
+        public IGenericRepository<TEntity, TKey> GetRepository<TEntity, TKey>() where TEntity : class
+        {
+            var entityType = typeof(TEntity).Name;
+            var keyType = typeof(TKey).Name;
+            var repositoryKey = $"{entityType}_{keyType}";
 
-        public IOrderRepository Orders =>
-            _orders ??= new OrderRepository(_context);
+            if (_repositories.ContainsKey(repositoryKey))
+            {
+                return (IGenericRepository<TEntity, TKey>)_repositories[repositoryKey];
+            }
 
-        public IProductRepository Products =>
-            _products ??= new ProductRepository(_context);
-
-        public IInvoiceRepository Invoices =>
-            _invoices ??= new InvoiceRepository(_context);
-
-        public IUserRepository Users =>
-            _users ??= new UserRepository(_context);
+            var repository = new GenericRepository<TEntity, TKey>(_context);
+            _repositories.Add(repositoryKey, repository);
+            return repository;
+        }
 
         public async Task<int> SaveChangesAsync()
         {
@@ -43,7 +39,6 @@ namespace Persistence.Repository
 
         public async Task BeginTransactionAsync()
         {
-            // Skip transactions for in-memory database
             if (_context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
             {
                 _transaction = await _context.Database.BeginTransactionAsync();
